@@ -30,7 +30,7 @@ void smooth_init(smooth_t *self)
 
 void smooth_start(smooth_t *self, float target)
 {
-    self->pos_start = self->pos_end;
+    self->pos_start = smooth_get(self);
     self->pos_end = target;
     self->start_tick = bc_tick_get();
     self->end_tick = self->start_tick + ((self->max_duration * abs(self->pos_start - self->pos_end ) ) / 180);
