@@ -99,25 +99,17 @@ bool _smooth_set(smooth_t *self, bc_atci_param_t *param)
         return false;
     }
 
-    uint8_t angle = 0;
+    uint8_t angle = atoi(param->txt);
 
-    for (size_t i = 0; i < param->length; i++)
+    int speed = 3000;
+
+    char *comma = strstr(param->txt, ",");
+    if(comma != NULL)
     {
-        angle *= 10;
-
-        char c = param->txt[param->offset++];
-
-        if (c >= '0' && c <= '9')
-        {
-            c -= '0';
-        }
-        else
-        {
-            return false;
-        }
-
-        angle += c;
+        speed = atoi((comma+1));
     }
+
+    self->max_duration = speed;
 
     smooth_start(self, (float)angle);
 
