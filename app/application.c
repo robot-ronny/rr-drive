@@ -29,12 +29,18 @@ smooth_t sm_p7;
 smooth_t sm_p8;
 smooth_t sm_p12;
 smooth_t sm_p14;
+smooth_t sm_p15;
+smooth_t sm_p16;
+smooth_t sm_p17;
 
+#define SERVO_COUNT 20
 
-void button_event_handler(bc_button_t *self, bc_button_event_t event, void *event_param)
-{
-    bc_soft_servo_start();
-}
+uint8_t ee_servo_pos[SERVO_COUNT];
+
+#define MAGIC_WORD 0x76767672
+#define EE_ADDRESS_MAGIC_WORD 0
+#define EE_ADDRESS_SERVO 4
+
 
 bool at_led_set(bc_atci_param_t *param)
 {
@@ -60,41 +66,11 @@ bool at_led_set(bc_atci_param_t *param)
     return false;
 }
 
-bool _servo_set_angle(bc_servo_t *servo, bc_atci_param_t *param)
-{
-    if (param->length < 1)
-    {
-        return false;
-    }
-
-    uint8_t angle = 0;
-
-    for (size_t i = 0; i < param->length; i++)
-    {
-        angle *= 10;
-
-        char c = param->txt[param->offset++];
-
-        if (c >= '0' && c <= '9')
-        {
-            c -= '0';
-        }
-        else
-        {
-            return false;
-        }
-
-        angle += c;
-    }
-
-    bc_servo_set_angle(servo, angle);
-
-    return true;
-}
-
-
 bool _smooth_set(smooth_t *self, bc_atci_param_t *param)
 {
+
+    bc_led_pulse(&led, 50);
+
     if (param->length < 1)
     {
         return false;
@@ -163,6 +139,113 @@ bool servo_p14_set_angle(bc_atci_param_t *param)
     return _smooth_set(&sm_p14, param);
 }
 
+bool servo_p15_set_angle(bc_atci_param_t *param)
+{
+    return _smooth_set(&sm_p15, param);
+}
+
+bool servo_p16_set_angle(bc_atci_param_t *param)
+{
+    return _smooth_set(&sm_p16, param);
+}
+
+bool servo_p17_set_angle(bc_atci_param_t *param)
+{
+    return _smooth_set(&sm_p17, param);
+}
+
+bool servo_save()
+{
+    ee_servo_pos[0] = bc_servo_get_angle(&servo_p0);
+    ee_servo_pos[1] = bc_servo_get_angle(&servo_p1);
+    ee_servo_pos[2] = bc_servo_get_angle(&servo_p2);
+    ee_servo_pos[3] = bc_servo_get_angle(&servo_p3);
+    ee_servo_pos[4] = bc_servo_get_angle(&servo_p6);
+    ee_servo_pos[5] = bc_servo_get_angle(&servo_p7);
+    ee_servo_pos[6] = bc_servo_get_angle(&servo_p8);
+    ee_servo_pos[7] = bc_servo_get_angle(&servo_p12);
+    ee_servo_pos[8] = bc_servo_get_angle(&servo_p14);
+
+    ee_servo_pos[15] = bc_soft_servo_get_angle(BC_GPIO_P15);
+    ee_servo_pos[16] = bc_soft_servo_get_angle(BC_GPIO_P16);
+    ee_servo_pos[17] = bc_soft_servo_get_angle(BC_GPIO_P17);
+
+    uint32_t magic_word = MAGIC_WORD;
+    bc_eeprom_write(EE_ADDRESS_MAGIC_WORD, &magic_word, sizeof(magic_word));
+    bc_eeprom_write(EE_ADDRESS_SERVO, &ee_servo_pos, sizeof(ee_servo_pos));
+    return true;
+}
+
+bool servo_status()
+{
+
+    bc_atci_printf("+S0=%d", bc_servo_get_angle(&servo_p0));
+    bc_atci_printf("+S1=%d", bc_servo_get_angle(&servo_p1));
+    bc_atci_printf("+S2=%d", bc_servo_get_angle(&servo_p2));
+    bc_atci_printf("+S3=%d", bc_servo_get_angle(&servo_p3));
+    bc_atci_printf("+S4=%d", bc_servo_get_angle(&servo_p6));
+    bc_atci_printf("+S5=%d", bc_servo_get_angle(&servo_p7));
+    bc_atci_printf("+S6=%d", bc_servo_get_angle(&servo_p8));
+    bc_atci_printf("+S7=%d", bc_servo_get_angle(&servo_p12));
+    bc_atci_printf("+S8=%d", bc_servo_get_angle(&servo_p14));
+
+    bc_atci_printf("+S15=%d", bc_soft_servo_get_angle(BC_GPIO_P15));
+    bc_atci_printf("+S16=%d", bc_soft_servo_get_angle(BC_GPIO_P16));
+    bc_atci_printf("+S17=%d", bc_soft_servo_get_angle(BC_GPIO_P17));
+
+    return true;
+}
+
+void servo_load_from_eeprom()
+{
+    uint32_t magic_word;
+    bc_eeprom_read(EE_ADDRESS_MAGIC_WORD, &magic_word, sizeof(magic_word));
+
+    if (magic_word == MAGIC_WORD)
+    {
+        bc_eeprom_read(EE_ADDRESS_SERVO, &ee_servo_pos, sizeof(ee_servo_pos));
+    }
+    else
+    {
+        for (int i = 0; i < SERVO_COUNT; i++)
+        {
+            ee_servo_pos[i] = 10;
+        }
+    }
+
+}
+
+void button_event_handler(bc_button_t *self, bc_button_event_t event, void *event_param)
+{
+    if (event == BC_BUTTON_EVENT_HOLD)
+    {
+        servo_load_from_eeprom();
+
+        smooth_start(&sm_p0, (float)ee_servo_pos[0]);
+        smooth_start(&sm_p1, (float)ee_servo_pos[1]);
+        smooth_start(&sm_p2, (float)ee_servo_pos[2]);
+        smooth_start(&sm_p3, (float)ee_servo_pos[3]);
+        smooth_start(&sm_p6, (float)ee_servo_pos[4]);
+        smooth_start(&sm_p7, (float)ee_servo_pos[5]);
+        smooth_start(&sm_p8, (float)ee_servo_pos[6]);
+        smooth_start(&sm_p12, (float)ee_servo_pos[7]);
+        smooth_start(&sm_p14, (float)ee_servo_pos[8]);
+
+        smooth_start(&sm_p15, (float)ee_servo_pos[15]);
+        smooth_start(&sm_p16, (float)ee_servo_pos[16]);
+        smooth_start(&sm_p17, (float)ee_servo_pos[17]);
+
+        bc_led_pulse(&led, 2000);
+    }
+
+    if (event == BC_BUTTON_EVENT_CLICK)
+    {
+        bc_led_pulse(&led, 200);
+
+        bc_soft_servo_start();
+    }
+}
+
 void application_init(void)
 {
     // Initialize logging
@@ -175,6 +258,7 @@ void application_init(void)
     // Initialize button
     bc_button_init(&button, BC_GPIO_BUTTON, BC_GPIO_PULL_DOWN, false);
     bc_button_set_event_handler(&button, button_event_handler, NULL);
+    bc_button_set_hold_time(&button, 1000);
 
     bc_servo_init(&servo_p0, BC_PWM_P0);
     bc_servo_init(&servo_p1, BC_PWM_P1);
@@ -186,9 +270,20 @@ void application_init(void)
     bc_servo_init(&servo_p12, BC_PWM_P12);
     bc_servo_init(&servo_p14, BC_PWM_P14);
 
+    bc_soft_servo_init(BC_GPIO_P15);
+    bc_soft_servo_init(BC_GPIO_P16);
+    bc_soft_servo_init(BC_GPIO_P17);
+
+    servo_load_from_eeprom();
+
     // Initialize AT command interface
     static const bc_atci_command_t commands[] = {
             {"$LED", NULL, at_led_set, NULL, NULL, "LED on/off"},
+
+            {"$S15", NULL, servo_p15_set_angle, NULL, NULL, "P15"},
+            {"$S16", NULL, servo_p16_set_angle, NULL, NULL, "P16"},
+            {"$S17", NULL, servo_p17_set_angle, NULL, NULL, "P17"},
+
             {"$S0", NULL, servo_p0_set_angle, NULL, NULL, "Set angle on servo on P0"},
             {"$S1", NULL, servo_p1_set_angle, NULL, NULL, "P1"},
             {"$S2", NULL, servo_p2_set_angle, NULL, NULL, "P2"},
@@ -199,30 +294,37 @@ void application_init(void)
             {"$S6", NULL, servo_p8_set_angle, NULL, NULL, "P8"},
             {"$S7", NULL, servo_p12_set_angle, NULL, NULL, "P12"},
             {"$S8", NULL, servo_p14_set_angle, NULL, NULL, "P14"},
+
+
+
+            {"$SAVE", servo_save, NULL, NULL, NULL, "Save current servo position as default to the EEPROM"},
+
+            {"$STATUS", servo_status, NULL, NULL, NULL, "Get current servo position"},
+
             BC_ATCI_COMMAND_CLAC,
             BC_ATCI_COMMAND_HELP
     };
     bc_atci_init(commands, BC_ATCI_COMMANDS_LENGTH(commands));
 
-    smooth_init(&sm_p0);
-    smooth_init(&sm_p1);
-    smooth_init(&sm_p2);
-    smooth_init(&sm_p3);
-    smooth_init(&sm_p6);
-    smooth_init(&sm_p7);
-    smooth_init(&sm_p8);
-    smooth_init(&sm_p12);
-    smooth_init(&sm_p14);
+    smooth_init(&sm_p0,  ee_servo_pos[0]);
+    smooth_init(&sm_p1,  ee_servo_pos[1]);
+    smooth_init(&sm_p2,  ee_servo_pos[2]);
+    smooth_init(&sm_p3,  ee_servo_pos[3]);
+    smooth_init(&sm_p6,  ee_servo_pos[4]);
+    smooth_init(&sm_p7,  ee_servo_pos[5]);
+    smooth_init(&sm_p8,  ee_servo_pos[6]);
+    smooth_init(&sm_p12, ee_servo_pos[7]);
+    smooth_init(&sm_p14, ee_servo_pos[8]);
 
-    bc_soft_servo_init(BC_GPIO_P4);
-    bc_soft_servo_set_pulse_length(BC_GPIO_P4, 2000);
+    smooth_init(&sm_p15, ee_servo_pos[15]);
+    smooth_init(&sm_p16, ee_servo_pos[16]);
+    smooth_init(&sm_p17, ee_servo_pos[17]);
 
-    bc_soft_servo_start();
+
 }
 
 void application_task(void)
 {
-
     bc_servo_set_angle(&servo_p0, smooth_get(&sm_p0));
     bc_servo_set_angle(&servo_p1, smooth_get(&sm_p1));
     bc_servo_set_angle(&servo_p2, smooth_get(&sm_p2));
@@ -233,7 +335,11 @@ void application_task(void)
     bc_servo_set_angle(&servo_p12, smooth_get(&sm_p12));
     bc_servo_set_angle(&servo_p14, smooth_get(&sm_p14));
 
+    bc_soft_servo_set_angle(BC_GPIO_P15, smooth_get(&sm_p15));
+    bc_soft_servo_set_angle(BC_GPIO_P16, smooth_get(&sm_p16));
+    bc_soft_servo_set_angle(BC_GPIO_P17, smooth_get(&sm_p17));
 
+    bc_soft_servo_start();
 
     bc_scheduler_plan_current_relative(20);
 }
