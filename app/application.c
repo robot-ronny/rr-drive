@@ -2,6 +2,7 @@
 #include <bc_servo.h>
 
 #include "smooth.h"
+#include "bc_soft_servo.h"
 
 // LED instance
 bc_led_t led;
@@ -32,7 +33,7 @@ smooth_t sm_p14;
 
 void button_event_handler(bc_button_t *self, bc_button_event_t event, void *event_param)
 {
-
+    bc_soft_servo_start();
 }
 
 bool at_led_set(bc_atci_param_t *param)
@@ -213,6 +214,10 @@ void application_init(void)
     smooth_init(&sm_p12);
     smooth_init(&sm_p14);
 
+    bc_soft_servo_init(BC_GPIO_P4);
+    bc_soft_servo_set_pulse_length(BC_GPIO_P4, 2000);
+
+    bc_soft_servo_start();
 }
 
 void application_task(void)
@@ -227,6 +232,8 @@ void application_task(void)
     bc_servo_set_angle(&servo_p8, smooth_get(&sm_p8));
     bc_servo_set_angle(&servo_p12, smooth_get(&sm_p12));
     bc_servo_set_angle(&servo_p14, smooth_get(&sm_p14));
+
+
 
     bc_scheduler_plan_current_relative(20);
 }
