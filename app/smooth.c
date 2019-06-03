@@ -17,16 +17,15 @@ float smooth_map(float x, float in_min, float in_max, float out_min, float out_m
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void smooth_init(smooth_t *self)
+void smooth_init(smooth_t *self, float pos_current)
 {
-    self->pos_end = 10;
-    self->pos_start = 10;
+    self->pos_end = pos_current;
+    self->pos_start = pos_current;
+    self->pos_current = pos_current;
+
     self->active = false;
-
     self->max_duration = 3000;
-    self->pos_current = 10;
 }
-
 
 void smooth_start(smooth_t *self, float target)
 {
@@ -37,7 +36,6 @@ void smooth_start(smooth_t *self, float target)
 
     self->active = true;
 }
-
 
 float smooth_get(smooth_t *self)
 {

@@ -19,7 +19,7 @@ typedef struct smooth_t
 } smooth_t;
 
 
-void smooth_init(smooth_t *self);
+void smooth_init(smooth_t *self, float pos_current);
 
 void smooth_start(smooth_t *self, float target);
 
