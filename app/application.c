@@ -295,8 +295,6 @@ void application_init(void)
             {"$S7", NULL, servo_p12_set_angle, NULL, NULL, "P12"},
             {"$S8", NULL, servo_p14_set_angle, NULL, NULL, "P14"},
 
-
-
             {"$SAVE", servo_save, NULL, NULL, NULL, "Save current servo position as default to the EEPROM"},
 
             {"$STATUS", servo_status, NULL, NULL, NULL, "Get current servo position"},
